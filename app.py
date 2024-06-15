@@ -100,13 +100,13 @@ if st.session_state.model_trained and st.button("Simulate GBM"):
         simulated_paths = []
         for _ in range(n_simulations):
             paths, drifts = gbm_sim(spot_price, volatility, steps, st.session_state.model, st.session_state.features, st.session_state.data)
-            simulated_paths.append(paths)
+            simulated_paths.append(paths[:steps])  # Trim to match length of index
         simulated_df = pd.DataFrame(simulated_paths).transpose()
 
         # Plot results
         st.subheader("Hasil Simulasi")
         fig, ax = plt.subplots(figsize=(10, 6))
-        index = st.session_state.data.index[:steps]
+        index = st.session_state.data.index[:steps]  # Trim index as well
         for i in range(n_simulations):
             ax.plot(index, simulated_df.iloc[:, i], color='blue', alpha=0.1)
         ax.plot(index, st.session_state.data['Adj Close'][:steps], color='red', label='Actual')
