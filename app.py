@@ -8,9 +8,10 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
+from datetime import date
 
 # Fungsi untuk memuat data
-def load_data(ticker="BBCA.JK", start="2022-01-01", end="2023-12-31"):
+def load_data(ticker, start, end):
     data = yf.download(ticker, start=start, end=end)
     data = data.interpolate(method='linear')
     data['LogReturn'] = np.log(data['Adj Close'] / data['Adj Close'].shift(1))
@@ -55,15 +56,19 @@ def gbm_sim(spot_price, volatility, steps, model, features, data):
 
 # Streamlit interface
 st.title("Simulasi Prediksi Harga Saham")
-st.write("Nama Emiten: BBCA.JK")
 st.write("Nama Kelompok: Kelompok 1")
+
+# Input parameter untuk data
+ticker = st.text_input("Masukkan kode saham (contoh: BBCA.JK)", value="BBCA.JK")
+start_date = st.date_input("Tanggal mulai", value=date(2022, 1, 1))
+end_date = st.date_input("Tanggal akhir", value=date(2023, 12, 31))
 
 # Input parameter simulasi
 steps = st.number_input("Jangka Waktu (hari)", min_value=1, max_value=252, value=252)
 n_simulations = st.number_input("Jumlah Simulasi", min_value=1, max_value=1000, value=100)
 
 # Load data and train model
-data, features = load_data()
+data, features = load_data(ticker, start_date, end_date)
 model, mse, r2 = train_model(data, features)
 volatility = calculate_volatility(data)
 spot_price = data["Adj Close"].iloc[0]
