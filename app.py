@@ -68,8 +68,10 @@ if __name__ == "__main__":
     st.subheader("PT Bank Central Asia Tbk (BBCA.JK)")
 
     ticker = st.text_input("Enter the stock ticker:", "BBCA.JK")
+    start_date = st.date_input("Start date", value=pd.to_datetime("2022-01-01"))
+    end_date = st.date_input("End date", value=pd.to_datetime("2023-12-31"))
 
-    data, features = load_data(ticker)
+    data, features = load_data(ticker, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"))
     model, mse, r2 = train_model(data, features)
 
     st.write(f"Model Evaluation: Mean Squared Error: {mse}, R-squared: {r2}")
