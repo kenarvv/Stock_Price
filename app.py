@@ -67,34 +67,40 @@ end_date = st.date_input("Tanggal akhir", value=date(2023, 12, 31))
 steps = 252  # Default jangka waktu (hari)
 n_simulations = 100  # Default jumlah simulasi
 
-# Load data and train model
-data, features = load_data(ticker, start_date, end_date)
-model, mse, r2 = train_model(data, features)
-volatility = calculate_volatility(data)
-spot_price = data["Adj Close"].iloc[0]
+# Load data
+if st.button("Load Data"):
+    data, features = load_data(ticker, start_date, end_date)
+    st.write("Data Loaded")
+    st.write(data.head())
 
-# Perform simulations
-simulated_paths = []
-for _ in range(n_simulations):
-    paths, drifts = gbm_sim(spot_price, volatility, steps, model, features, data)
-    simulated_paths.append(paths)
+# Train model
+if 'data' in locals() and st.button("Train Model"):
+    model, mse, r2 = train_model(data, features)
+    st.write(f"Model trained. Mean Squared Error: {mse}, R-squared: {r2}")
 
-# Convert simulated paths to DataFrame
-simulated_df = pd.DataFrame(simulated_paths).transpose()
+# Simulate GBM
+if 'model' in locals() and st.button("Simulate GBM"):
+    volatility = calculate_volatility(data)
+    spot_price = data["Adj Close"].iloc[0]
+    simulated_paths = []
+    for _ in range(n_simulations):
+        paths, drifts = gbm_sim(spot_price, volatility, steps, model, features, data)
+        simulated_paths.append(paths)
+    simulated_df = pd.DataFrame(simulated_paths).transpose()
 
-# Plot results
-st.subheader("Hasil Simulasi")
-fig, ax = plt.subplots(figsize=(10, 6))
-index = data.index[:steps]
-for i in range(n_simulations):
-    ax.plot(index, simulated_df.iloc[:, i], color='blue', alpha=0.1)
-ax.plot(index, data['Adj Close'][:steps], color='red', label='Actual')
-ax.set_xlabel("Time Step")
-ax.set_ylabel("Stock Price")
-ax.set_title("Simulated Stock Price Paths")
-ax.legend()
-st.pyplot(fig)
+    # Plot results
+    st.subheader("Hasil Simulasi")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    index = data.index[:steps]
+    for i in range(n_simulations):
+        ax.plot(index, simulated_df.iloc[:, i], color='blue', alpha=0.1)
+    ax.plot(index, data['Adj Close'][:steps], color='red', label='Actual')
+    ax.set_xlabel("Time Step")
+    ax.set_ylabel("Stock Price")
+    ax.set_title("Simulated Stock Price Paths")
+    ax.legend()
+    st.pyplot(fig)
 
-# Display simulated paths in table
-st.subheader("Tabel Hasil Simulasi")
-st.dataframe(simulated_df)
+    # Display simulated paths in table
+    st.subheader("Tabel Hasil Simulasi")
+    st.dataframe(simulated_df)
