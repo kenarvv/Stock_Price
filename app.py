@@ -74,9 +74,12 @@ if st.button("Load Data"):
     st.write(data.head())
 
 # Train model
-if 'data' in locals() and st.button("Train Model"):
-    model, mse, r2 = train_model(data, features)
-    st.write(f"Model trained. Mean Squared Error: {mse}, R-squared: {r2}")
+if 'data' in locals() and 'features' in locals() and st.button("Train Model"):
+    try:
+        model, mse, r2 = train_model(data, features)
+        st.write(f"Model trained. Mean Squared Error: {mse}, R-squared: {r2}")
+    except Exception as e:
+        st.write("Training model error:", e)
 
 # Simulate GBM
 if 'model' in locals() and st.button("Simulate GBM"):
