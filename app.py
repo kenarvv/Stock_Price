@@ -32,10 +32,7 @@ def train_model(data, features):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    return model, mse, r2
+    return model
 
 # Fungsi untuk menghitung volatilitas tahunan
 def calculate_volatility(data):
@@ -69,41 +66,49 @@ n_simulations = 100  # Default jumlah simulasi
 
 # Load data
 if st.button("Load Data"):
-    data, features = load_data(ticker, start_date, end_date)
-    st.write("Data Loaded")
-    st.write(data.head())
+    try:
+        data, features = load_data(ticker, start_date, end_date)
+        st.write("Data Loaded")
+        st.write(data.head())
+    except Exception as e:
+        st.write("Error loading data:", e)
+        data = None
+        features = None
 
 # Train model
-if 'data' in locals() and 'features' in locals() and st.button("Train Model"):
+if data is not None and features is not None and st.button("Train Model"):
     try:
-        model, mse, r2 = train_model(data, features)
-        st.write(f"Model trained. Mean Squared Error: {mse}, R-squared: {r2}")
+        model = train_model(data, features)
+        st.write("Model trained successfully")
     except Exception as e:
-        st.write("Training model error:", e)
+        st.write("Error training model:", e)
 
 # Simulate GBM
 if 'model' in locals() and st.button("Simulate GBM"):
-    volatility = calculate_volatility(data)
-    spot_price = data["Adj Close"].iloc[0]
-    simulated_paths = []
-    for _ in range(n_simulations):
-        paths, drifts = gbm_sim(spot_price, volatility, steps, model, features, data)
-        simulated_paths.append(paths)
-    simulated_df = pd.DataFrame(simulated_paths).transpose()
+    try:
+        volatility = calculate_volatility(data)
+        spot_price = data["Adj Close"].iloc[0]
+        simulated_paths = []
+        for _ in range(n_simulations):
+            paths, drifts = gbm_sim(spot_price, volatility, steps, model, features, data)
+            simulated_paths.append(paths)
+        simulated_df = pd.DataFrame(simulated_paths).transpose()
 
-    # Plot results
-    st.subheader("Hasil Simulasi")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    index = data.index[:steps]
-    for i in range(n_simulations):
-        ax.plot(index, simulated_df.iloc[:, i], color='blue', alpha=0.1)
-    ax.plot(index, data['Adj Close'][:steps], color='red', label='Actual')
-    ax.set_xlabel("Time Step")
-    ax.set_ylabel("Stock Price")
-    ax.set_title("Simulated Stock Price Paths")
-    ax.legend()
-    st.pyplot(fig)
+        # Plot results
+        st.subheader("Hasil Simulasi")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        index = data.index[:steps]
+        for i in range(n_simulations):
+            ax.plot(index, simulated_df.iloc[:, i], color='blue', alpha=0.1)
+        ax.plot(index, data['Adj Close'][:steps], color='red', label='Actual')
+        ax.set_xlabel("Time Step")
+        ax.set_ylabel("Stock Price")
+        ax.set_title("Simulated Stock Price Paths")
+        ax.legend()
+        st.pyplot(fig)
 
-    # Display simulated paths in table
-    st.subheader("Tabel Hasil Simulasi")
-    st.dataframe(simulated_df)
+        # Display simulated paths in table
+        st.subheader("Tabel Hasil Simulasi")
+        st.dataframe(simulated_df)
+    except Exception as e:
+        st.write("Error simulating GBM:", e)
