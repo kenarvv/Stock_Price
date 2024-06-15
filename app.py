@@ -62,6 +62,31 @@ def gbm_sim(spot_price, volatility, steps, model, features, data):
 
     return paths[:-1], drift
 
+# Fungsi untuk memprediksi harga saham masa depan
+def predict_future_prices(model, features, data, start_date="2024-06-01", end_date="2025-06-01"):
+    future_data = pd.date_range(start_date, end_date, freq="D")
+    future_data = pd.DataFrame(index=future_data, columns=["SMA", "EMA", "RSI"])
+
+    period = 14
+    last_prices = data["Adj Close"].iloc[-period:]
+    future_data["SMA"] = ta.trend.sma_indicator(last_prices, window=period)
+    future_data["EMA"] = ta.trend.ema_indicator(last_prices, window=period)
+    future_data["RSI"] = ta.momentum.rsi(last_prices, window=period)
+
+    future_data.fillna(future_data.mean(), inplace=True)
+
+    scaler = MinMaxScaler()
+    future_data[features] = scaler.fit_transform(future_data[features])
+
+    future_prices = []
+    for i in range(len(future_data)):
+        drift = model.predict(future_data[features].iloc[[i]])
+        volatility = calculate_volatility(data)
+        new_price = data["Adj Close"].iloc[-1] * np.exp((drift - 0.5 * volatility**2) * (1 / 252) + volatility * np.random.normal() * np.sqrt(1 / 252))
+        future_prices.append(new_price)
+
+    return future_prices
+
 # Main Function
 if __name__ == "__main__":
     st.title("Stock Price Prediction and Simulation")
@@ -69,7 +94,7 @@ if __name__ == "__main__":
 
     ticker = st.text_input("Enter the stock ticker:", "BBCA.JK")
     start_date = st.date_input("Start date", value=pd.to_datetime("2022-01-01"))
-    end_date = st.date_input("End date", value=pd.to_datetime("2023-12-31"))
+    end_date= st.date_input("End date", value=pd.to_datetime("2023-12-31"))
 
     data, features = load_data(ticker, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"))
     model, mse, r2 = train_model(data, features)
@@ -102,3 +127,12 @@ if __name__ == "__main__":
     ax[2].plot([abs(i - j) for (i, j) in zip(drifts, data['LogReturn'].values[:len(index)])])
     _ = [ax[i].set_title(j) for i, j in enumerate(labels)]
     st.pyplot(fig)
+
+    st.subheader("Future Stock Price Prediction")
+    future_prices = predict_future_prices(model, features, data)
+    plt.figure(figsize=(10, 6))
+    plt.plot(future_prices)
+    plt.xlabel("Time Step")
+    plt.ylabel("Stock Price")
+    plt.title("Future Stock Price Prediction")
+    st.pyplot(plt)
