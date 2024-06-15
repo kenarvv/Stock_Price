@@ -43,6 +43,12 @@ def train_model(data, features):
     st.session_state.model_trained = True
     return model
 
+# Function to calculate volatility
+def calculate_volatility(data):
+    daily_returns = np.log(data["Adj Close"].pct_change() + 1)
+    annualized_volatility = daily_returns.std() * np.sqrt(252)
+    return annualized_volatility
+
 # Function to simulate GBM
 def gbm_sim(spot_price, volatility, steps, model, features, data):
     dt = 1 / 252
