@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -12,7 +10,15 @@ from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 from datetime import date
 
-# Fungsi untuk memuat data
+# Initialize session state to store variables
+if 'data' not in st.session_state:
+    st.session_state.data = None
+if 'features' not in st.session_state:
+    st.session_state.features = None
+if 'model_trained' not in st.session_state:
+    st.session_state.model_trained = False
+
+# Function to load data
 def load_data(ticker, start, end):
     data = yf.download(ticker, start=start, end=end)
     data = data.interpolate(method='linear')
@@ -27,25 +33,17 @@ def load_data(ticker, start, end):
     data[features] = scaler.fit_transform(data[features])
     return data, features
 
-# Fungsi untuk melatih model
+# Function to train model
 def train_model(data, features):
     X = data[features]
     y = data['LogReturn']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    return model, mse, r2
+    st.session_state.model_trained = True
+    return model
 
-# Fungsi untuk menghitung volatilitas tahunan
-def calculate_volatility(data):
-    daily_returns = np.log(data["Adj Close"].pct_change() + 1)
-    annualized_volatility = daily_returns.std() * np.sqrt(252)
-    return annualized_volatility
-
-# Fungsi untuk simulasi GBM
+# Function to simulate GBM
 def gbm_sim(spot_price, volatility, steps, model, features, data):
     dt = 1 / 252
     paths = [spot_price]
@@ -60,17 +58,60 @@ def gbm_sim(spot_price, volatility, steps, model, features, data):
 st.title("Simulasi Prediksi Harga Saham")
 st.write("Nama Kelompok: Kelompok 1")
 
-# Input parameter untuk data
+# Input parameters for data
 ticker = st.text_input("Masukkan kode saham (contoh: BBCA.JK)", value="BBCA.JK")
 start_date = st.date_input("Tanggal mulai", value=date(2022, 1, 1))
 end_date = st.date_input("Tanggal akhir", value=date(2023, 12, 31))
 
-# Parameter default untuk simulasi
-steps = 252  # Default jangka waktu (hari)
-n_simulations = 100  # Default jumlah simulasi
+# Default parameters for simulation
+steps = 252  # Default time period (days)
+n_simulations = 100  # Default number of simulations
 
-# Load data
+# Load data button
 if st.button("Load Data"):
-    data, features = load_data(ticker, start_date, end_date)
-    st.write("Data Loaded")
-   
+    try:
+        st.session_state.data, st.session_state.features = load_data(ticker, start_date, end_date)
+        st.write("Data Loaded")
+        st.write(st.session_state.data.head())
+    except Exception as e:
+        st.write("Error loading data:", e)
+        st.session_state.data = None
+        st.session_state.features = None
+
+# Train model button
+if st.session_state.data is not None and st.session_state.features is not None and st.button("Train Model"):
+    try:
+        st.session_state.model = train_model(st.session_state.data, st.session_state.features)
+        st.write("Model trained successfully")
+    except Exception as e:
+        st.write("Error training model:", e)
+
+# Simulate GBM button
+if st.session_state.model_trained and st.button("Simulate GBM"):
+    try:
+        volatility = calculate_volatility(st.session_state.data)
+        spot_price = st.session_state.data["Adj Close"].iloc[0]
+        simulated_paths = []
+        for _ in range(n_simulations):
+            paths, drifts = gbm_sim(spot_price, volatility, steps, st.session_state.model, st.session_state.features, st.session_state.data)
+            simulated_paths.append(paths)
+        simulated_df = pd.DataFrame(simulated_paths).transpose()
+
+        # Plot results
+        st.subheader("Hasil Simulasi")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        index = st.session_state.data.index[:steps]
+        for i in range(n_simulations):
+            ax.plot(index, simulated_df.iloc[:, i], color='blue', alpha=0.1)
+        ax.plot(index, st.session_state.data['Adj Close'][:steps], color='red', label='Actual')
+        ax.set_xlabel("Time Step")
+        ax.set_ylabel("Stock Price")
+        ax.set_title("Simulated Stock Price Paths")
+        ax.legend()
+        st.pyplot(fig)
+
+        # Display simulated paths in table
+        st.subheader("Tabel Hasil Simulasi")
+        st.dataframe(simulated_df)
+    except Exception as e:
+        st.write("Error simulating GBM:", e)
