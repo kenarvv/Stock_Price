@@ -74,7 +74,7 @@ if __name__ == "__main__":
     data, features = load_data(ticker, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"))
     model, mse, r2 = train_model(data, features)
 
-    st.write(f"Model Evaluation: Mean Squared Error: {mse}, R-squared: {r2}")
+    st.write(f"Model Evaluation: Mean Squared Error: {mse}\n R-squared: {r2}")
 
     spot_price = data["Adj Close"].iloc[0]
     volatility = calculate_volatility(data)
