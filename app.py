@@ -76,9 +76,9 @@ if __name__ == "__main__":
 
     st.write(f"Model Evaluation: Mean Squared Error: {mse}, R-squared: {r2}")
 
-    steps = st.slider("Simulation Steps", min_value=1, max_value=len(data), value=len(data))
     spot_price = data["Adj Close"].iloc[0]
     volatility = calculate_volatility(data)
+    steps = len(data)
     simulated_paths, drifts = gbm_sim(spot_price, volatility, steps, model, features, data)
 
     st.subheader("Simulated Stock Price Paths")
