@@ -65,7 +65,8 @@ def gbm_sim(spot_price, volatility, steps, model, features, data):
 # Main Function
 if __name__ == "__main__":
     st.title("Stock Price Prediction and Simulation")
-    st.subheader("Tugas Besar Pemodelan dan Simulasi\n - Ken Arvian Narasoma(1301213387)\n -Anggi")
+    st.subheader("Tugas Besar Pemodelan dan Simulasi\n - Ken Arvian Narasoma(1301213387)\n - Anggi")
+    st.subheader("- Ken Arvian Narasoma(1301213387)\n - Anggi")
 
     ticker = st.text_input("Enter the stock ticker:", "BBCA.JK")
     start_date = st.date_input("Start date", value=pd.to_datetime("2022-01-01"))
