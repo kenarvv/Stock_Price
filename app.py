@@ -63,9 +63,9 @@ ticker = st.text_input("Masukkan kode saham (contoh: BBCA.JK)", value="BBCA.JK")
 start_date = st.date_input("Tanggal mulai", value=date(2022, 1, 1))
 end_date = st.date_input("Tanggal akhir", value=date(2023, 12, 31))
 
-# Input parameter simulasi
-steps = st.number_input("Jangka Waktu (hari)", min_value=1, max_value=252, value=252)
-n_simulations = st.number_input("Jumlah Simulasi", min_value=1, max_value=1000, value=100)
+# Parameter default untuk simulasi
+steps = 252  # Default jangka waktu (hari)
+n_simulations = 100  # Default jumlah simulasi
 
 # Load data and train model
 data, features = load_data(ticker, start_date, end_date)
