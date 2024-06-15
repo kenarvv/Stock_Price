@@ -58,7 +58,7 @@ def gbm_sim(spot_price, volatility, steps, model, features, data):
         random_shock = np.random.normal() * np.sqrt(dt)
         new_price = paths[-1] * np.exp((drift[i] - 0.5 * volatility**2) * dt + volatility * random_shock)
         paths.append(new_price)
-    return paths[:-1], drift
+    return paths[:steps], drift
 
 # Streamlit interface
 st.title("Simulasi Prediksi Harga Saham")
@@ -100,7 +100,7 @@ if st.session_state.model_trained and st.button("Simulate GBM"):
         simulated_paths = []
         for _ in range(n_simulations):
             paths, drifts = gbm_sim(spot_price, volatility, steps, st.session_state.model, st.session_state.features, st.session_state.data)
-            simulated_paths.append(paths[:steps])  # Trim to match length of index
+            simulated_paths.append(paths)  # No need to trim paths here
         simulated_df = pd.DataFrame(simulated_paths).transpose()
 
         # Plot results
@@ -108,7 +108,7 @@ if st.session_state.model_trained and st.button("Simulate GBM"):
         fig, ax = plt.subplots(figsize=(10, 6))
         index = st.session_state.data.index[:steps]  # Trim index as well
         for i in range(n_simulations):
-            ax.plot(index, simulated_df.iloc[:, i], color='blue', alpha=0.1)
+            ax.plot(index, simulated_df.iloc[:, i][:steps], color='blue', alpha=0.1)  # Ensure only the first `steps` data points are plotted
         ax.plot(index, st.session_state.data['Adj Close'][:steps], color='red', label='Actual')
         ax.set_xlabel("Time Step")
         ax.set_ylabel("Stock Price")
