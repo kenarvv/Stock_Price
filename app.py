@@ -6,20 +6,10 @@ from sklearn.preprocessing import MinMaxScaler
 import ta
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
-from datetime import date
-
-# Initialize session state to store variables
-if 'data' not in st.session_state:
-    st.session_state.data = None
-if 'features' not in st.session_state:
-    st.session_state.features = None
-if 'model_trained' not in st.session_state:
-    st.session_state.model_trained = False
 
 # Function to load data
-def load_data(ticker, start, end):
+def load_data(ticker="BBCA.JK", start="2022-01-01", end="2023-12-31"):
     data = yf.download(ticker, start=start, end=end)
     data = data.interpolate(method='linear')
     data['LogReturn'] = np.log(data['Adj Close'] / data['Adj Close'].shift(1))
@@ -40,84 +30,83 @@ def train_model(data, features):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-    st.session_state.model_trained = True
     return model
-
-# Function to calculate volatility
-def calculate_volatility(data):
-    daily_returns = np.log(data["Adj Close"].pct_change() + 1)
-    annualized_volatility = daily_returns.std() * np.sqrt(252)
-    return annualized_volatility
 
 # Function to simulate GBM
 def gbm_sim(spot_price, volatility, steps, model, features, data):
-    dt = 1 / 252
+    dt = 1 / 252  # Daily
     paths = [spot_price]
     drift = model.predict(data[features])
+
     for i in range(len(drift)):
         random_shock = np.random.normal() * np.sqrt(dt)
         new_price = paths[-1] * np.exp((drift[i] - 0.5 * volatility**2) * dt + volatility * random_shock)
         paths.append(new_price)
-    return paths[:steps], drift
 
-# Streamlit interface
-st.title("Simulasi Prediksi Harga Saham")
-st.write("Nama Kelompok: Kelompok 1")
+    return paths[:-1], drift
 
-# Input parameters for data
-ticker = st.text_input("Masukkan kode saham (contoh: BBCA.JK)", value="BBCA.JK")
-start_date = st.date_input("Tanggal mulai", value=date(2022, 1, 1))
-end_date = st.date_input("Tanggal akhir", value=date(2023, 12, 31))
+# Main function
+def main():
+    st.title("Simulasi Prediksi Harga Saham")
+    st.write("Nama Kelompok: Kelompok 1")
 
-# Default parameters for simulation
-steps = 252  # Default time period (days)
-n_simulations = 100  # Default number of simulations
+    # Sidebar for user input
+    st.sidebar.header('Masukkan Parameter')
+    ticker = st.sidebar.text_input("Kode Saham (contoh: BBCA.JK)", value='BBCA.JK')
+    start_date = st.sidebar.date_input("Tanggal Awal", value=pd.to_datetime('2022-01-01'))
+    end_date = st.sidebar.date_input("Tanggal Akhir", value=pd.to_datetime('2023-12-31'))
 
-# Load data button
-if st.button("Load Data"):
-    try:
-        st.session_state.data, st.session_state.features = load_data(ticker, start_date, end_date)
-        st.write("Data Loaded")
-        st.write(st.session_state.data.head())
-    except Exception as e:
-        st.write("Error loading data:", e)
-        st.session_state.data = None
-        st.session_state.features = None
+    # Load data button
+    if st.sidebar.button("Load Data"):
+        try:
+            data, features = load_data(ticker, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+            st.write("Data Loaded")
+            st.write(data.head())
+        except Exception as e:
+            st.write("Error loading data:", e)
+            data = None
+            features = None
 
-# Train model button
-if st.session_state.data is not None and st.session_state.features is not None and st.button("Train Model"):
-    try:
-        st.session_state.model = train_model(st.session_state.data, st.session_state.features)
-        st.write("Model trained successfully")
-    except Exception as e:
-        st.write("Error training model:", e)
+    # Train model button
+    if data is not None and features is not None and st.sidebar.button("Train Model"):
+        try:
+            model = train_model(data, features)
+            st.write("Model trained successfully")
+        except Exception as e:
+            st.write("Error training model:", e)
+            model = None
 
-# Simulate GBM button
-if st.session_state.model_trained and st.button("Simulate GBM"):
-    try:
-        volatility = calculate_volatility(st.session_state.data)
-        spot_price = st.session_state.data["Adj Close"].iloc[0]
-        simulated_paths = []
-        for _ in range(n_simulations):
-            paths, drifts = gbm_sim(spot_price, volatility, steps, st.session_state.model, st.session_state.features, st.session_state.data)
-            simulated_paths.append(paths)  # No need to trim paths here
-        simulated_df = pd.DataFrame(simulated_paths).transpose()
+    # Simulate GBM button
+    if model is not None and st.sidebar.button("Simulate GBM"):
+        try:
+            steps = len(data)
+            spot_price = data["Adj Close"].iloc[0]
+            volatility = data["LogReturn"].std() * np.sqrt(252)  # Annualized volatility
+            simulated_paths, drifts = gbm_sim(spot_price, volatility, steps, model, features, data)
 
-        # Plot results
-        st.subheader("Hasil Simulasi")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        index = st.session_state.data.index[:steps]  # Trim index as well
-        for i in range(n_simulations):
-            ax.plot(index, simulated_df.iloc[:, i][:steps], color='blue', alpha=0.1)  # Ensure only the first `steps` data points are plotted
-        ax.plot(index, st.session_state.data['Adj Close'][:steps], color='red', label='Actual')
-        ax.set_xlabel("Time Step")
-        ax.set_ylabel("Stock Price")
-        ax.set_title("Simulated Stock Price Paths")
-        ax.legend()
-        st.pyplot(fig)
+            # Plot simulated paths
+            plt.figure(figsize=(10, 6))
+            index = data.index
+            plt.plot(index, simulated_paths[:len(index)], label='Predicted')
+            plt.plot(index, data['Adj Close'].values, label='Actual')
+            plt.xlabel("Time Step")
+            plt.ylabel("Stock Price")
+            plt.title("Simulated Stock Price Paths")
+            plt.legend()
+            st.pyplot()
 
-        # Display simulated paths in table
-        st.subheader("Tabel Hasil Simulasi")
-        st.dataframe(simulated_df)
-    except Exception as e:
-        st.write("Error simulating GBM:", e)
+            # Plot drift values
+            fig, ax = plt.subplots(1, 3, figsize=(15, 4))
+            ax[0].plot(index, drifts[:len(index)])
+            ax[0].set_title('Predicted Drift')
+            ax[1].plot(index, data['LogReturn'].values[:len(index)])
+            ax[1].set_title('Actual Log Returns')
+            ax[2].plot(index, [abs(i - j) for (i, j) in zip(drifts, data['LogReturn'].values[:len(index)])])
+            ax[2].set_title('Absolute Error between Predicted Drift and Actual Log Returns')
+            st.pyplot(fig)
+
+        except Exception as e:
+            st.write("Error simulating GBM:", e)
+
+if __name__ == "__main__":
+    main()
